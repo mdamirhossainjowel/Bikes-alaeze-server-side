@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
-const req = require("express/lib/request");
-var ObjectId = require("mongodb").ObjectId;
+const jwt = require("jsonwebtoken");
+const ObjectId = require("mongodb").ObjectId;
 require("dotenv").config();
 const { MongoClient, ServerApiVersion } = require("mongodb");
 
@@ -18,12 +18,29 @@ const client = new MongoClient(uri, {
   serverApi: ServerApiVersion.v1,
 });
 
+function verifyjwt(req, res, next) {
+  const authorization = req.headers.authorization;
+  if (!authorization) {
+    return res.status(401).send({ message: "Unauthorize Access" });
+  }
+  const token = authorization.split(" ")[1];
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded) {
+    if (err) {
+      return res.status(403).send({ message: "Forbidden Access" });
+    }
+    req.decoded = decoded;
+    next();
+  });
+}
+
 async function run() {
   try {
     await client.connect();
     const db = client.db("Bikes_Alaeze");
     const product_collection = db.collection("bikes_products");
     const review_collection = db.collection("reviews_products");
+    const purchage_product = db.collection("purchage_products");
+    const userCollection = db.collection("user");
 
     app.get("/products", async (req, res) => {
       const query = {};
@@ -38,10 +55,44 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/mypurchage", verifyjwt, async (req, res) => {
+      const purchageProduct = req.query.Email;
+      const decodedEmail = req.decoded.email;
+      if (purchageProduct === decodedEmail) {
+        const query = { Email: purchageProduct };
+        console.log(query);
+        const result = await purchage_product.find(query).toArray();
+        res.send(result);
+      } else {
+        return res.status(403).send({ message: "Forbidden Access" });
+      }
+    });
+
     app.get("/reviews", async (req, res) => {
       const query = {};
       const result = await review_collection.find(query).toArray();
       res.send(result);
+    });
+    app.post("/purchage", async (req, res) => {
+      const purchageProduct = req.body;
+      const result = await purchage_product.insertOne(purchageProduct);
+      res.send(result);
+    });
+    app.put("/user/:email", async (req, res) => {
+      const email = req.params.email;
+      const user = req.body;
+      const filter = { email: email };
+      const options = { upsert: true };
+      const updatedoc = {
+        $set: user,
+      };
+      const result = await userCollection.updateOne(filter, updatedoc, options);
+      const token = jwt.sign(
+        { email: email },
+        process.env.ACCESS_TOKEN_SECRET,
+        { expiresIn: "1h" }
+      );
+      res.send({ result, token });
     });
   } finally {
   }
