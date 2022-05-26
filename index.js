@@ -58,9 +58,10 @@ async function run() {
     app.get("/mypurchage", verifyjwt, async (req, res) => {
       const purchageProduct = req.query.Email;
       const decodedEmail = req.decoded.email;
+      console.log(purchageProduct);
+      console.log(decodedEmail);
       if (purchageProduct === decodedEmail) {
         const query = { Email: purchageProduct };
-        console.log(query);
         const result = await purchage_product.find(query).toArray();
         res.send(result);
       } else {
@@ -87,11 +88,7 @@ async function run() {
         $set: user,
       };
       const result = await userCollection.updateOne(filter, updatedoc, options);
-      const token = jwt.sign(
-        { email: email },
-        process.env.ACCESS_TOKEN_SECRET,
-        { expiresIn: "1h" }
-      );
+      const token = jwt.sign({ email: email }, process.env.ACCESS_TOKEN_SECRET);
       res.send({ result, token });
     });
   } finally {
