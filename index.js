@@ -24,6 +24,7 @@ function verifyjwt(req, res, next) {
     return res.status(401).send({ message: "Unauthorize Access" });
   }
   const token = authorization.split(" ")[1];
+
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded) {
     if (err) {
       return res.status(403).send({ message: "Forbidden Access" });
@@ -56,14 +57,14 @@ async function run() {
     });
 
     app.get("/mypurchage", verifyjwt, async (req, res) => {
-      const purchageProduct = req.query.Email;
+      const customerEmail = req.query.Email;
       const decodedEmail = req.decoded.email;
-      console.log(purchageProduct);
+      console.log(customerEmail);
       console.log(decodedEmail);
-      if (purchageProduct === decodedEmail) {
-        const query = { Email: purchageProduct };
+      if (customerEmail === decodedEmail) {
+        const query = { Email: customerEmail };
         const result = await purchage_product.find(query).toArray();
-        res.send(result);
+        return res.send(result);
       } else {
         return res.status(403).send({ message: "Forbidden Access" });
       }
@@ -79,6 +80,35 @@ async function run() {
       const result = await purchage_product.insertOne(purchageProduct);
       res.send(result);
     });
+    app.get("/users",verifyjwt, async (req, res) => {
+      const result = await userCollection.find().toArray();
+     res.send(result);
+    });
+    app.get('/admin/:email',async(req,res)=>{
+      const email=req.params.email;
+      const user= await userCollection.findOne({email: email});
+      const isAdmin=user.role==='admin';
+      res.send({admin: isAdmin});
+    })
+
+    app.put("/users/admin/:email",verifyjwt, async (req, res) => {
+      const email = req.params.email;
+      const filter = { email: email };
+   const requester=req.decoded.email;
+   const recquesterRole= await userCollection.findOne({email: requester});
+   if(recquesterRole.role==='admin'){
+    const updatedoc = {
+      $set: {role:'admin'},
+    };
+    const result = await userCollection.updateOne(filter, updatedoc);
+    return res.send( result);
+   }
+   else{
+    return res.status(403).send({ message: "Forbidden Access" });
+   }
+     
+    });
+
     app.put("/user/:email", async (req, res) => {
       const email = req.params.email;
       const user = req.body;
