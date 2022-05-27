@@ -59,6 +59,17 @@ async function run() {
       const result = await product_collection.findOne(filter);
       res.send(result);
     });
+    app.put("/products/:id", async (req, res) => {
+      const id = req.params.id;
+      const user = req.body;
+      const filter = { _id: ObjectId(id) };
+      const options = { upsert: true };
+      const updatedoc = {
+        $set: user,
+      };
+      const result = await userCollection.updateOne(filter, updatedoc, options);
+      return res.send(result);
+    });
 
     app.get("/mypurchage", verifyjwt, async (req, res) => {
       const customerEmail = req.query.Email;
