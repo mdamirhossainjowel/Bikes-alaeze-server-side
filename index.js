@@ -61,13 +61,21 @@ async function run() {
     });
     app.put("/products/:id", async (req, res) => {
       const id = req.params.id;
-      const user = req.body;
+      const data = req.body;
       const filter = { _id: ObjectId(id) };
       const options = { upsert: true };
       const updatedoc = {
-        $set: user,
+        $set: {
+          available_quantity: data.available_quantity,
+          minimum_quantity: data.minimum_quantity,
+          price: data.price,
+        },
       };
-      const result = await userCollection.updateOne(filter, updatedoc, options);
+      const result = await product_collection.updateOne(
+        filter,
+        updatedoc,
+        options
+      );
       return res.send(result);
     });
 
