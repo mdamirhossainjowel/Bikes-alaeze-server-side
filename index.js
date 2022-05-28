@@ -4,7 +4,7 @@ const jwt = require("jsonwebtoken");
 const ObjectId = require("mongodb").ObjectId;
 require("dotenv").config();
 const { MongoClient, ServerApiVersion } = require("mongodb");
-
+const stripe = require("stripe")(process.env.SECRET_KEY_STRIPE);
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -41,6 +41,7 @@ async function run() {
     const product_collection = db.collection("bikes_products");
     const review_collection = db.collection("reviews_products");
     const purchage_product = db.collection("purchage_products");
+    const paymentCollection = db.collection("payment");
     const userCollection = db.collection("user");
 
     app.get("/products", async (req, res) => {
@@ -101,6 +102,18 @@ async function run() {
       const result = await review_collection.find(query).toArray();
       res.send(result);
     });
+    app.get("/purchage/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: ObjectId(id) };
+      const result = await purchage_product.findOne(filter);
+      res.send(result);
+    });
+    app.delete("/purchage/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: ObjectId(id) };
+      const result = await purchage_product.deleteOne(filter);
+      res.send(result);
+    });
     app.get("/purchage", async (req, res) => {
       const query = {};
       const result = await purchage_product.find(query).toArray();
@@ -110,6 +123,18 @@ async function run() {
       const purchageProduct = req.body;
       const result = await purchage_product.insertOne(purchageProduct);
       res.send(result);
+    });
+    app.patch("/purchage/:id", async (req, res) => {
+      const id = req.params.id;
+      const purchageProduct = req.body;
+      const filter = { _id: ObjectId(id) };
+      const updatedoc = {
+        $set: { paid: true,
+        transactionId: purchageProduct.transactionId},
+      };
+      const result=await paymentCollection.insertOne(purchageProduct);
+      const paymentConfirm = await purchage_product.updateOne(filter,updatedoc);
+      res.send(updatedoc);
     });
     app.get("/users", verifyjwt, async (req, res) => {
       const result = await userCollection.find().toArray();
@@ -154,6 +179,20 @@ async function run() {
       );
       res.send({ result, token });
     });
+
+
+    app.post("/create-payment-intent", async (req, res) => {
+      const product = req.body;
+      const price=product.Price;
+      const amount=price*100;
+      const paymentIntent= await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types:['card'],
+      });
+      res.send({clientSecret: paymentIntent.client_secret,})
+    });
+
   } finally {
   }
 }
