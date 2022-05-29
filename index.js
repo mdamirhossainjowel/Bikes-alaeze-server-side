@@ -42,7 +42,18 @@ async function run() {
     const review_collection = db.collection("reviews_products");
     const purchage_product = db.collection("purchage_products");
     const paymentCollection = db.collection("payment");
+    const shippedCollection = db.collection("shipped");
     const userCollection = db.collection("user");
+
+    app.post("/shipped", async (req, res) => {
+      const isshipped = req.body;
+      const result = await shippedCollection.insertOne(isshipped);
+      res.send(result);
+    });
+    app.get("/shipped", async (req, res) => {
+      const result = await shippedCollection.find({}).toArray();
+      res.send(result);
+    });
 
     app.get("/products", async (req, res) => {
       const query = {};
@@ -129,11 +140,13 @@ async function run() {
       const purchageProduct = req.body;
       const filter = { _id: ObjectId(id) };
       const updatedoc = {
-        $set: { paid: true,
-        transactionId: purchageProduct.transactionId},
+        $set: { paid: true, transactionId: purchageProduct.transactionId },
       };
-      const result=await paymentCollection.insertOne(purchageProduct);
-      const paymentConfirm = await purchage_product.updateOne(filter,updatedoc);
+      const result = await paymentCollection.insertOne(purchageProduct);
+      const paymentConfirm = await purchage_product.updateOne(
+        filter,
+        updatedoc
+      );
       res.send(updatedoc);
     });
     app.get("/users", verifyjwt, async (req, res) => {
@@ -180,19 +193,17 @@ async function run() {
       res.send({ result, token });
     });
 
-
     app.post("/create-payment-intent", async (req, res) => {
       const product = req.body;
-      const price=product.Price;
-      const amount=price*100;
-      const paymentIntent= await stripe.paymentIntents.create({
+      const price = product.Price;
+      const amount = price * 100;
+      const paymentIntent = await stripe.paymentIntents.create({
         amount: amount,
         currency: "usd",
-        payment_method_types:['card'],
+        payment_method_types: ["card"],
       });
-      res.send({clientSecret: paymentIntent.client_secret,})
+      res.send({ clientSecret: paymentIntent.client_secret });
     });
-
   } finally {
   }
 }
