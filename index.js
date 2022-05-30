@@ -139,13 +139,20 @@ async function run() {
       const id = req.params.id;
       const purchageProduct = req.body;
       const filter = { _id: ObjectId(id) };
+      const options = { upsert: true };
+
       const updatedoc = {
-        $set: { paid: true, transactionId: purchageProduct.transactionId },
+        $set: {
+          paid: true,
+          shipped: purchageProduct?.shipped,
+          transactionId: purchageProduct.transactionId,
+        },
       };
       const result = await paymentCollection.insertOne(purchageProduct);
       const paymentConfirm = await purchage_product.updateOne(
         filter,
-        updatedoc
+        updatedoc,
+        options
       );
       res.send(updatedoc);
     });
